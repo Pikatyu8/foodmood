@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/shop_favorable_prices/',
+    base: '/foodmood/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

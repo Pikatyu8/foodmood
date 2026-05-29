@@ -9,7 +9,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function App() {
   return (
-    <Router>
+    // Добавлен basename, чтобы роутинг корректно работал в подпапке на GitHub Pages
+    <Router basename={import.meta.env.BASE_URL}>
       <div className="d-flex flex-column min-vh-100" style={{ backgroundColor: '#17212b', color: '#f5f6f7' }}>
         
         {/* Navigation bar fixed at the top */}
