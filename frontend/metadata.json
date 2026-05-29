@@ -1,0 +1,6 @@
+{
+  "name": "AI Creative and Vocal Sandbox",
+  "description": "An interactive full-stack workspace featuring custom text generation, text-to-speech voiceovers, and search grounding powered by Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
