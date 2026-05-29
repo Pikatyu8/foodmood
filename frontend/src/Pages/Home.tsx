@@ -48,7 +48,7 @@ export default function Home() {
 
   // --- API / Backend Connection ---
   const [backendUrl, setBackendUrl] = useState<string>(() => {
-    return localStorage.getItem('foodmood_backend_url') || 'http://127.0.0.1:8000';
+    return localStorage.getItem('foodmood_backend_url') || 'https://niksan0011-foodmood-backend.hf.space';
   });
   const [loadingStores, setLoadingStores] = useState<boolean>(false);
   const [storeError, setStoreError] = useState<string>('');
