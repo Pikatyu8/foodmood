@@ -716,7 +716,7 @@ export default function Home() {
                       <p className="font-weight-bold mb-1">Ошибка рассчета рекомендаций:</p>
                       <p className="mb-2">{storeError}</p>
                       <hr className="my-2 border-white opacity-20" />
-                      <p className="mb-0 text-white-50">Убедитесь, что ваш FastAPI backend запущен по адресу <code>{backendUrl}</code> и работает исправно.</p>
+                      <p className="mb-0 text-white-50">Свяжитесь с владельцем бекенда в дискорд: "k._not".</p>
                     </div>
                   </div>
                 </div>

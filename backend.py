@@ -1,6 +1,4 @@
 import requests
-import random
-import math
 import time
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +9,7 @@ from typing import List
 app = FastAPI(
     title="Store Finder API",
     description="API для поиска оптимальных магазинов с учетом лени и бюджета пользователя",
-    version="1.2.4"
+    version="1.3.0"
 )
 
 app.add_middleware(
@@ -35,12 +33,11 @@ PRICE_MULTIPLIERS = {
     "чижик": 0.7
 }
 
-# Меняем приоритет: ставим самые быстрые серверы первыми
 OVERPASS_SERVERS = [
-    "https://overpass-api.de/api/interpreter",          # Основной сервер FOSSGIS (самый мощный)
-    "https://lz4.overpass-api.de/api/interpreter",      # Первое официальное зеркало
-    "https://z.overpass-api.de/api/interpreter",        # Второе официальное зеркало
-    "https://overpass.private.coffee/api/interpreter"   # Альтернативный сервер (бывший kumi.systems)
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter"
 ]
 
 class SearchRequest(BaseModel):
@@ -58,36 +55,10 @@ class StoreResponse(BaseModel):
     lat: float
     lon: float
 
-def generate_mock_stores(lat: float, lon: float, radius_meters: int) -> List[dict]:
-    mock_brands = [
-        ("Пятерочка", 0.9),
-        ("Магнит", 0.9),
-        ("Дикси", 0.85),
-        ("ВкусВилл", 1.4),
-        ("Перекресток", 1.2),
-        ("Азбука Вкуса", 1.8),
-        ("Чижик", 0.7)
-    ]
-    stores = []
-    for i in range(random.randint(5, 8)):
-        brand, multiplier = random.choice(mock_brands)
-        angle = random.uniform(0, 2 * math.pi)
-        dist = random.uniform(150, radius_meters)
-        
-        offset_lat = (dist * math.cos(angle)) / 111000.0
-        offset_lon = (dist * math.sin(angle)) / (111000.0 * math.cos(math.radians(lat)))
-        
-        store_lat = lat + offset_lat
-        store_lon = lon + offset_lon
-        
-        stores.append({
-            "name": f"{brand} (Резервный режим)",
-            "distance": dist,
-            "estimated_price": BASE_BASKET_PRICE * multiplier,
-            "lat": store_lat,
-            "lon": store_lon
-        })
-    return stores
+@app.get("/")
+def read_root():
+    # Избавляемся от ошибки "Not Found" на главной странице Hugging Face Spaces
+    return {"status": "alive", "message": "Store Finder API is running successfully!"}
 
 @app.post("/api/v1/recommend-stores", response_model=List[StoreResponse])
 def recommend_stores(request: SearchRequest):
@@ -113,8 +84,6 @@ def recommend_stores(request: SearchRequest):
     out center;
     """
     
-    # Заголовки, полностью удовлетворяющие новым требованиям Overpass API.
-    # Реалистичный почтовый адрес и отсутствие фраз вроде 'example.com' защищают от бана.
     headers = {
         'Accept': 'application/json, */*',
         'User-Agent': 'DavidFoodMoodSearchApp/1.3 (contact: david.polyakov.dev@yandex.ru)',
@@ -145,32 +114,39 @@ def recommend_stores(request: SearchRequest):
             
     raw_candidates = []
     
+    # 1. Если сервера Overpass недоступны — возвращаем 503 ошибку
     if data is None:
-        print("  [INFO] Все внешние API недоступны. Переход на генерацию mock-данных.")
-        raw_candidates = generate_mock_stores(request.lat, request.lon, request.radius_meters)
-    elif not data.get('elements'):
-        print("  [INFO] API ответило успешно, но в данном радиусе нет магазинов. Переход на mock-данные.")
-        raw_candidates = generate_mock_stores(request.lat, request.lon, request.radius_meters)
-    else:
-        print(f"  [SUCCESS] Найдено реальных объектов в OSM: {len(data['elements'])}")
-        for element in data.get('elements', []):
-            tags = element.get('tags', {})
-            original_name = tags.get('name', 'Продуктовый магазин')
+        print("  [ERROR] Все внешние API недоступны.")
+        raise HTTPException(
+            status_code=503,
+            detail="Внешние картографические серверы (Overpass API) перегружены или временно недоступны. Пожалуйста, повторите попытку позже."
+        )
+    
+    # 2. Если магазины не найдены — возвращаем пустой список (фронтенд сам покажет красивое предупреждение)
+    if not data.get('elements'):
+        print("  [INFO] API ответило успешно, но магазинов в данном радиусе не найдено.")
+        return []
+        
+    # 3. Если данные пришли, парсим их
+    print(f"  [SUCCESS] Найдено реальных объектов в OSM: {len(data['elements'])}")
+    for element in data.get('elements', []):
+        tags = element.get('tags', {})
+        original_name = tags.get('name', 'Продуктовый магазин')
+        
+        store_lat = element.get('lat') or element.get('center', {}).get('lat')
+        store_lon = element.get('lon') or element.get('center', {}).get('lon')
+        if not store_lat or not store_lon:
+            continue
             
-            store_lat = element.get('lat') or element.get('center', {}).get('lat')
-            store_lon = element.get('lon') or element.get('center', {}).get('lon')
-            if not store_lat or not store_lon:
-                continue
-                
-            distance_meters = geodesic(user_coords, (store_lat, store_lon)).meters
-            
-            raw_candidates.append({
-                "name": original_name,
-                "distance": distance_meters,
-                "lat": store_lat,
-                "lon": store_lon
-            })
-            
+        distance_meters = geodesic(user_coords, (store_lat, store_lon)).meters
+        
+        raw_candidates.append({
+            "name": original_name,
+            "distance": distance_meters,
+            "lat": store_lat,
+            "lon": store_lon
+        })
+        
     if not raw_candidates:
         print("  [END] Список кандидатов пуст. Возвращаем пустой результат.")
         return []
@@ -200,11 +176,10 @@ def recommend_stores(request: SearchRequest):
         
     candidate_stores = found_stores[:15]
     
-# Нормируем расстояние по максимальному радиусу поиска
+    # Расчет целевой функции на основе радиуса пользователя и идеального мультипликатора
     max_distance = float(request.radius_meters)
     if max_distance == 0: max_distance = 1.0
     
-    # Рассчитываем целевой мультипликатор цены для пользователя (от 0.7 до 1.8)
     ideal_multiplier = 0.7 + (5 - request.solvency) * 0.275
     
     scored_stores = []
@@ -212,16 +187,10 @@ def recommend_stores(request: SearchRequest):
         dist = store["distance"]
         price = store["estimated_price"]
         
-        # Определяем мультипликатор текущего магазина
         current_multiplier = price / BASE_BASKET_PRICE
-        
-        # Умножаем штраф цены на динамический вес request.solvency (от 1 до 5)
         price_penalty = abs(current_multiplier - ideal_multiplier) * float(request.solvency)
-        
-        # Штраф за расстояние (от 0 до 5.0)
         distance_penalty = (dist * request.mobility) / max_distance
         
-        # Итоговая оценка — сумма двух штрафов
         score = distance_penalty + price_penalty
         
         scored_stores.append(StoreResponse(
