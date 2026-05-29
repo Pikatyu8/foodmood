@@ -12,6 +12,14 @@ interface Store {
 }
 
 export default function Home() {
+    const [isConsentAccepted, setIsConsentAccepted] = useState<boolean>(() => {
+    return localStorage.getItem('foodmood_consent_accepted') === 'true';
+  });
+
+  const handleAcceptConsent = () => {
+    localStorage.setItem('foodmood_consent_accepted', 'true');
+    setIsConsentAccepted(true);
+  };
   // --- Persistent & Onboarding State ---
   const [isOnboarded, setIsOnboarded] = useState<boolean>(() => {
     return localStorage.getItem('foodmood_onboarded') === 'true';
@@ -438,8 +446,54 @@ export default function Home() {
   }
 
   // --- RENDERING MAIN SERVICE WORKSPACE ---
-  return (
+return (
     <div className="container-fluid py-4 min-vh-100 font-sans" style={{ backgroundColor: '#0e1621', color: '#f5f6f7' }}>
+      
+      {/* МОДАЛЬНОЕ ОКНО СОГЛАСИЯ НА ОБРАБОТКУ ДАННЫХ */}
+      {!isConsentAccepted && (
+        <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1100 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content bg-dark text-white border border-warning shadow-lg rounded-4">
+              
+              <div className="modal-header border-bottom border-secondary py-3">
+                <div className="d-flex align-items-center gap-2">
+                  <AlertCircle className="text-warning animate-pulse" size={24} />
+                  <h5 className="modal-title font-sans fw-bold text-warning m-0">Конфиденциальность геоданных</h5>
+                </div>
+              </div>
+              
+              <div className="modal-body p-4 fs-6" style={{ lineHeight: '1.6' }}>
+                <p className="mb-3">
+                  Для работы подбора магазинов нашему сервису необходимо обрабатывать ваши <strong>географические координаты</strong> (широту и долготу).
+                </p>
+                
+                <div className="p-3 rounded border border-secondary mb-3 text-muted" style={{ background: 'rgba(255,255,255,0.02)', fontSize: '0.875rem' }}>
+                  <ul className="mb-0 ps-3">
+                    <li className="mb-2">Геоданные используются исключительно для автоматического вычисления расстояний до магазинов.</li>
+                    <li className="mb-2">Обработка происходит «на лету» в оперативной памяти сервера, данные никуда не записываются и не сохраняются.</li>
+                    <li className="mb-0">Мы не собираем ваши ФИО, IP-адреса, контакты или любые другие идентифицирующие сведения.</li>
+                  </ul>
+                </div>
+                
+                <p className="small text-muted mb-0" style={{ fontSize: '0.8rem' }}>
+                  Нажимая кнопку <strong>«Я согласен, продолжить»</strong>, вы подтверждаете свое согласие на обработку этих обезличенных данных в соответствии с Федеральным законом РФ № 152-ФЗ «О персональных данных» и международными стандартами конфиденциальности.
+                </p>
+              </div>
+              
+              <div className="modal-footer border-top border-secondary justify-content-center p-3">
+                <button 
+                  type="button" 
+                  className="btn btn-warning px-5 py-2 fw-bold text-dark rounded-pill shadow-sm"
+                  onClick={handleAcceptConsent}
+                >
+                  Я согласен, продолжить
+                </button>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Dynamic Header Toolbar inside main UI page */}
       <div className="d-flex flex-wrap justify-content-between align-items-center pb-3 mb-4 border-bottom border-dark">
